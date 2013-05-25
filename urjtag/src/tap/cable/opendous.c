@@ -33,6 +33,8 @@
  */
 
 
+#include "sysdep.h"
+
 #include "generic.h"
 #include "generic_usbconn.h"
 
@@ -42,14 +44,11 @@
 /* ---------------------------------------------------------------------- */
 
 
-#include "sysdep.h"
-
 #include "cable.h"
 #include "chain.h"
 
 #include "jtag.h"
 
-#include <usb.h>
 #include <string.h>
 
 #define INFO(...)   printf(__VA_ARGS__)
