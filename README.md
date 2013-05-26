@@ -1,14 +1,6 @@
 urjtag
 ======
 
->My personal copy of urjtag where I integrate opendous cable driver.
->Based on actual SourceForge git sources from 2013-03-16.
+Trying to get the opendous-jtag driver to actually work.
+Use case: configuring XC9500XL devices with a basic AT90USB162 board.
 
-Log:
-----
-
-### 2013-03-16
-
-Basic backporting done.  The `urjtag` is compillable and it detects the connected BORA.
-
--- Radek Hnilica
