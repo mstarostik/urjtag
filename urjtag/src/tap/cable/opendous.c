@@ -49,6 +49,7 @@
 
 #include "jtag.h"
 
+#include <stdlib.h>
 #include <string.h>
 
 #define INFO(...)   printf(__VA_ARGS__)
@@ -76,6 +77,7 @@
 #define JTAG_CMD_READ_INPUT     0x3
 #define JTAG_CMD_TAP_OUTPUT_EMU 0x4
 #define JTAG_CMD_SET_DELAY      0x5
+#define JTAG_CMD_SET_SRST_TRST  0x6
 
 #define OPENDOUS_MAX_SPEED 4000
 
@@ -83,7 +85,11 @@ typedef struct
 {
   /* Global USB buffers */
   unsigned char usb_in_buffer[OPENDOUS_IN_BUFFER_SIZE];
-  unsigned char usb_out_buffer[OPENDOUS_OUT_BUFFER_SIZE];
+  struct {
+    uint8_t usb_out_size_lo;
+    uint8_t usb_out_size_hi;
+    unsigned char usb_out_buffer[OPENDOUS_OUT_BUFFER_SIZE];
+  } __attribute__((packed));
 
   int tap_length;
   uint8_t tms_buffer[OPENDOUS_TAP_BUFFER_SIZE];
@@ -136,17 +142,7 @@ urj_tap_cable_opendous_reset (urj_usbconn_libusb_param_t *params, int trst,
     urj_log (URJ_LOG_LEVEL_COMM, "trst=%d, srst=%d\n", trst, srst);
  
     /* Signals are active low */
-    if (trst == 0) {
-        opendous_simple_command (params, JTAG_CMD_SET_TRST,1);
-    } else if (trst == 1) {
-        opendous_simple_command (params, JTAG_CMD_SET_TRST,0);
-    }
-
-    if (srst == 0) {
-        opendous_simple_command (params, JTAG_CMD_SET_SRST,1);
-    } else if (srst == 1) {
-        opendous_simple_command (params, JTAG_CMD_SET_SRST,0);
-    }
+    opendous_simple_command (params, JTAG_CMD_SET_SRST_TRST, (srst ? 0 : 1) | (trst ? 0 : 2));
 }
 
 
@@ -402,10 +398,12 @@ opendous_usb_write (urj_usbconn_libusb_param_t *params, unsigned int out_length)
     urj_log(URJ_LOG_LEVEL_ALL, "dev: %#p, ep=%#02x, buff: %#p, size=%d, timeout=%d\n",
 	    params->handle, OPENDOUS_WRITE_ENDPOINT, data->usb_out_buffer,
 	    out_length, OPENDOUS_USB_TIMEOUT);
+    data->usb_out_size_lo = out_length & 0xff;
+    data->usb_out_size_hi = out_length >> 8;
     result = libusb_bulk_transfer (params->handle,
                                    OPENDOUS_WRITE_ENDPOINT,
-                                   data->usb_out_buffer,
-                                   out_length,
+                                   &data->usb_out_size_lo,
+                                   out_length + 2,
                                    &transferred,
                                    OPENDOUS_USB_TIMEOUT);
 #ifdef HAVE_LIBUSB1
@@ -414,9 +412,9 @@ opendous_usb_write (urj_usbconn_libusb_param_t *params, unsigned int out_length)
     }
 #endif
     urj_log (URJ_LOG_LEVEL_DETAIL, "result=%d, length=%d, transferred=%d\n",
-	    result, out_length, transferred);
+	    result, out_length + 2, transferred);
 
-    return transferred;
+    return transferred - 2;
 }
 
 /* ---------------------------------------------------------------------- */
